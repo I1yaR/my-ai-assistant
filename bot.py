@@ -113,18 +113,13 @@ async def shutdown():
     await telegram_app.stop()
     await telegram_app.shutdown()
 
-
 routes = [
     Route("/", health),
     Route("/health", health),
     Route("/telegram", telegram_webhook, methods=["POST"]),
 ]
 
-app = Starlette(
-    routes=routes,
-    on_startup=[startup],
-    on_shutdown=[shutdown],
-)
+app = Starlette(routes=routes)
 
 
 if __name__ == "__main__":
