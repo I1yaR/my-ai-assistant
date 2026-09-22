@@ -121,6 +121,9 @@ routes = [
 
 app = Starlette(routes=routes)
 
+app.add_event_handler("startup", startup)
+app.add_event_handler("shutdown", shutdown)
+
 
 if __name__ == "__main__":
     import uvicorn
