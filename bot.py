@@ -118,11 +118,16 @@ routes = [
     Route("/health", health),
     Route("/telegram", telegram_webhook, methods=["POST"]),
 ]
+from contextlib import asynccontextmanager
 
-app = Starlette(routes=routes)
 
-app.add_event_handler("startup", startup)
-app.add_event_handler("shutdown", shutdown)
+@asynccontextmanager
+async def lifespan(app):
+    await startup()
+    yield
+    await shutdown()
+    
+app = Starlette(routes=routes, lifespan=lifespan)
 
 
 if __name__ == "__main__":
