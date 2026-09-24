@@ -4,3 +4,4 @@ flask
 uvicorn
 asgiref
 starlette
+psycopg[binary]
