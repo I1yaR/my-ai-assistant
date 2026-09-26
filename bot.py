@@ -1,4 +1,5 @@
 import os
+import psycopg
 
 from openai import OpenAI
 from starlette.applications import Starlette
@@ -25,9 +26,23 @@ client = OpenAI(
     base_url="https://openrouter.ai/api/v1",
 )
 
-user_memory = {}
+DATABASE_URL = os.getenv("DATABASE_URL")
 
 telegram_app = Application.builder().token(TOKEN).build()
+
+def init_db():
+    with psycopg.connect(DATABASE_URL) as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS messages (
+                    id SERIAL PRIMARY KEY,
+                    user_id BIGINT NOT NULL,
+                    role TEXT NOT NULL,
+                    content TEXT NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+        conn.commit()
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -44,35 +59,69 @@ async def message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     text = update.message.text
 
-    if user_id not in user_memory:
-        user_memory[user_id] = []
+    with psycopg.connect(DATABASE_URL) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO messages (user_id, role, content)
+                VALUES (%s, %s, %s)
+                """,
+                (user_id, "user", text),
+            )
 
-    user_memory[user_id].append({
-        "role": "user",
-        "content": text,
-    })
+            cur.execute(
+                """
+                SELECT role, content
+                FROM messages
+                WHERE user_id = %s
+                ORDER BY id DESC
+                LIMIT 20
+                """,
+                (user_id,),
+            )
+
+            history = cur.fetchall()
+
+        conn.commit()
+
+    history.reverse()
+
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                "Ты полезный личный AI-помощник. "
+                "Учитывай предыдущие сообщения пользователя "
+                "в этом разговоре."
+            ),
+        }
+    ]
+
+    messages.extend(
+        {
+            "role": role,
+            "content": content,
+        }
+        for role, content in history
+    )
 
     response = client.chat.completions.create(
         model="openrouter/free",
-        messages=[
-            {
-                "role": "system",
-                "content": (
-                    "Ты полезный личный AI-помощник. "
-                    "Учитывай предыдущие сообщения пользователя "
-                    "в этом разговоре."
-                ),
-            },
-            *user_memory[user_id],
-        ],
+        messages=messages,
     )
 
     answer = response.choices[0].message.content
 
-    user_memory[user_id].append({
-        "role": "assistant",
-        "content": answer,
-    })
+    with psycopg.connect(DATABASE_URL) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO messages (user_id, role, content)
+                VALUES (%s, %s, %s)
+                """,
+                (user_id, "assistant", answer),
+            )
+        conn.commit()
 
     await update.message.reply_text(answer)
 
@@ -97,6 +146,7 @@ async def telegram_webhook(request: Request):
 
 
 async def startup():
+    init_db()
     await telegram_app.initialize()
     await telegram_app.start()
 
