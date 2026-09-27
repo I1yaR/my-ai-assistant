@@ -195,6 +195,8 @@ async def startup():
     print(f"WEBHOOK URL: {info.url}")
     print(f"WEBHOOK ERROR: {info.last_error_message}")
     print(f"WEBHOOK PENDING: {info.pending_update_count}")
+    print(f"WEBHOOK IP: {info.ip_address}")
+    print(f"WEBHOOK LAST ERROR DATE: {info.last_error_date}")
 
 async def shutdown():
     if telegram_app.bot:
