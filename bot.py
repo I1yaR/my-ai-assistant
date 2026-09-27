@@ -174,6 +174,7 @@ async def health(request: Request):
 
 
 async def telegram_webhook(request: Request):
+    print("TELEGRAM WEBHOOK RECEIVED")
     data = await request.json()
     update = Update.de_json(data, telegram_app.bot)
 
