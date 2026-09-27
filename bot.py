@@ -63,6 +63,32 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Я буду помнить контекст нашего разговора."
     )
 
+async def remember(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+
+    memory = " ".join(context.args).strip()
+
+    if not memory:
+        await update.message.reply_text(
+            "Напиши, что мне запомнить.\n"
+            "Например: /remember Меня зовут Илья"
+        )
+        return
+
+    with psycopg.connect(DATABASE_URL) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO memories (user_id, memory)
+                VALUES (%s, %s)
+                """,
+                (user_id, memory),
+            )
+        conn.commit()
+
+    await update.message.reply_text(
+        "🧠 Запомнил надолго."
+    )
 
 async def message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -136,6 +162,7 @@ async def message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 telegram_app.add_handler(CommandHandler("start", start))
+telegram_app.add_handler(CommandHandler("remember", remember))
 telegram_app.add_handler(
     MessageHandler(filters.TEXT & ~filters.COMMAND, message)
 )
