@@ -188,10 +188,8 @@ async def startup():
     await telegram_app.initialize()
     await telegram_app.start()
 
-    if RENDER_EXTERNAL_URL:
-        await telegram_app.bot.set_webhook(
-            url=f"{RENDER_EXTERNAL_URL}/telegram"
-        )
+    await telegram_app.bot.delete_webhook(drop_pending_updates=False)
+    await telegram_app.updater.start_polling()
 
     info = await telegram_app.bot.get_webhook_info()
     print(f"WEBHOOK URL: {info.url}")
@@ -201,9 +199,7 @@ async def startup():
     print(f"WEBHOOK LAST ERROR DATE: {info.last_error_date}")
 
 async def shutdown():
-    if telegram_app.bot:
-        await telegram_app.bot.delete_webhook()
-
+    await telegram_app.updater.stop()
     await telegram_app.stop()
     await telegram_app.shutdown()
 
