@@ -191,6 +191,10 @@ async def startup():
             url=f"{RENDER_EXTERNAL_URL}/telegram"
         )
 
+    info = await telegram_app.bot.get_webhook_info()
+    print(f"WEBHOOK URL: {info.url}")
+    print(f"WEBHOOK ERROR: {info.last_error_message}")
+    print(f"WEBHOOK PENDING: {info.pending_update_count}")
 
 async def shutdown():
     if telegram_app.bot:
